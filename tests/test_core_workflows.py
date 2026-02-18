@@ -126,6 +126,15 @@ def test_factor_evaluator_returns_metrics_with_and_without_scope() -> None:
     )
 
 
+def test_daily_rank_ic_skips_constant_cross_section() -> None:
+    panel = load_synthetic_panel(n_days=20, n_tickers=7, seed=123)
+    evaluator = FactorEvaluator(periods=[1], min_cross_section=5)
+    factor = pd.Series(1.0, index=panel.index, name="factor")
+    fwd = evaluator.calculate_forward_returns(panel)
+    rank_ic = evaluator._daily_rank_ic(factor, fwd["ret_1"])
+    assert rank_ic.empty
+
+
 def test_chat_model_kwargs_omit_temperature_for_gpt5_models() -> None:
     kwargs = AgentAlphaWorkflow._chat_model_kwargs("gpt-5-mini", 0.1)
     assert kwargs == {"model": "gpt-5-mini"}

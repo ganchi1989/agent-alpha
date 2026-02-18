@@ -327,6 +327,8 @@ class FactorEvaluator:
                 continue
             fac_rank = group["factor"].rank(method="average")
             ret_rank = group["ret"].rank(method="average")
+            if fac_rank.nunique(dropna=True) < 2 or ret_rank.nunique(dropna=True) < 2:
+                continue
             ic = fac_rank.corr(ret_rank, method="pearson")
             if ic is not None and np.isfinite(ic):
                 rank_ics.append((dt, float(ic)))
