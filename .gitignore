@@ -19,3 +19,8 @@ venv/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Generated SPX datasets
+agent_alpha/data/spx_agent_panel.csv
+agent_alpha/data/spx_prices.csv
+agent_alpha/data/spx_universe_filtered.csv
