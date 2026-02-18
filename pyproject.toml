@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-alpha"
+version = "0.1.0"
+description = "Standalone LangGraph blueprint-to-AST factor agent"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",
+  "pandas>=2.0",
+  "pydantic>=2.7",
+  "langchain>=1.0.0",
+  "langgraph>=0.2.0",
+  "langchain-openai>=0.3.0",
+]
+
+[project.scripts]
+agent-alpha-run = "agent_alpha.runner:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["agent_alpha*"]

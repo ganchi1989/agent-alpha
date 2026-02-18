@@ -1,0 +1,21 @@
+# Local data outputs
+notebooks/market_data/
+market_data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# Environments
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+
+# Jupyter
+.ipynb_checkpoints/
