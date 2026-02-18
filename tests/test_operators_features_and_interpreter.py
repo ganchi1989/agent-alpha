@@ -39,9 +39,7 @@ def _ohlcv(n: int = 40, seed: int = 42) -> pd.DataFrame:
     low = close - rng.uniform(0.5, 2.0, n)
     open_ = close + rng.normal(0, 0.5, n)
     volume = rng.uniform(1e6, 5e6, n)
-    return pd.DataFrame(
-        {"open": open_, "high": high, "low": low, "close": close, "volume": volume}
-    )
+    return pd.DataFrame({"open": open_, "high": high, "low": low, "close": close, "volume": volume})
 
 
 # ---------------------------------------------------------------------------
