@@ -18,6 +18,8 @@ from .evaluator import FactorEvaluator
 from .feature_engine import compute_blueprint_components, feature_catalog_for_prompt
 from .models import FactorBlueprint, HypothesisOutput
 
+RAW_PRICE_COLUMNS = ("$open", "$high", "$low", "$close", "$volume")
+
 
 @tool
 def list_feature_catalog() -> str:
@@ -113,6 +115,9 @@ class AgentAlphaWorkflow:
             system_prompt=(
                 "You design robust factor blueprints. "
                 "Use only feature components from the catalog and combine them with the allowed operators. "
+                "You may also reference direct price vars only from this allow-list: "
+                "$open, $high, $low, $close, $volume. "
+                "Do not use any other var names. "
                 "Keep expressions compact and readable."
             ),
         )
@@ -183,9 +188,11 @@ class AgentAlphaWorkflow:
             "1) Choose 2-5 robust components from the feature catalog.\n"
             "2) Use this combine expression grammar:\n"
             "   - {'type':'component','id':'<component_id>'}\n"
+            "   - {'type':'var','name':'$open|$high|$low|$close|$volume'}\n"
             "   - {'type':'const','value': number|bool|null}\n"
             "   - {'type':'call','op':'OP','args':[...]} where OP is in list_combine_operators.\n"
             "   - For WHERE, the first arg may be a numeric score; compiler interprets it as (score > 0).\n"
+            "   - Use only catalog features in components; use no var names outside OHLCV list above.\n"
             "3) Keep trees shallow and avoid unnecessary nesting.\n"
             "4) Use only deterministic numeric logic.\n\n"
             "Previous compile/eval error (if retry):\n"
@@ -222,6 +229,7 @@ class AgentAlphaWorkflow:
             compiled = compile_blueprint_to_ast(
                 blueprint,
                 component_columns,
+                allowed_var_columns=set(RAW_PRICE_COLUMNS),
                 allowed_windows=set(self.allowed_windows),
             )
 

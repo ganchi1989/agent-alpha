@@ -137,6 +137,7 @@ def compile_blueprint_to_ast(
     blueprint: FactorBlueprint,
     component_columns: Mapping[str, str],
     *,
+    allowed_var_columns: set[str] | None = None,
     allowed_windows: set[int] | None = None,
     max_depth: int = 64,
     max_nodes: int = 512,
@@ -146,6 +147,7 @@ def compile_blueprint_to_ast(
     Args:
         blueprint: Structured blueprint produced by the LLM step.
         component_columns: Mapping from component IDs to concrete panel columns.
+        allowed_var_columns: Optional allow-list for direct `var` node columns.
         allowed_windows: Optional allow-list for rolling-window operators.
         max_depth: Maximum AST depth accepted during validation.
         max_nodes: Maximum AST node count accepted during validation.
@@ -164,6 +166,9 @@ def compile_blueprint_to_ast(
 
     root = _compile_expr_node(blueprint.combine, component_columns, path="combine")
     registry = build_default_registry()
+    allowed_columns = set(component_columns.values())
+    if allowed_var_columns:
+        allowed_columns.update(str(col) for col in allowed_var_columns)
 
     normalized = normalize_and_validate_ast(
         root,
@@ -171,7 +176,7 @@ def compile_blueprint_to_ast(
         limits=ValidationLimits(
             max_depth=max_depth,
             max_nodes=max_nodes,
-            allowed_columns=set(component_columns.values()),
+            allowed_columns=allowed_columns,
             allowed_windows=allowed_windows,
         ),
     )
