@@ -27,7 +27,7 @@ class UniverseSpec:
     approx_tolerance: float = 0.15
 
     @classmethod
-    def from_config(cls, cfg: dict[str, Any]) -> "UniverseSpec":
+    def from_config(cls, cfg: dict[str, Any]) -> UniverseSpec:
         """Create `UniverseSpec` from a repository configuration dictionary."""
 
         synthetic_cfg = cfg.get("synthetic", {})

@@ -131,9 +131,7 @@ class AgentAlphaWorkflow:
         return not name.startswith("gpt-5")
 
     @classmethod
-    def _chat_model_kwargs(
-        cls, model_name: str, temperature: float | None
-    ) -> dict[str, Any]:
+    def _chat_model_kwargs(cls, model_name: str, temperature: float | None) -> dict[str, Any]:
         kwargs: dict[str, Any] = {"model": model_name}
         if temperature is not None and cls._supports_temperature(model_name):
             kwargs["temperature"] = float(temperature)

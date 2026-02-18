@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import inspect
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
-import inspect
-from typing import Any, Callable
+from typing import Any
 
 from ..operators.function_lib import SAFE_FUNCTIONS
 

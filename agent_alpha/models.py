@@ -85,7 +85,7 @@ class FactorBlueprint(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_component_ids_unique(self) -> "FactorBlueprint":
+    def validate_component_ids_unique(self) -> FactorBlueprint:
         """Reject blueprints with duplicate component IDs."""
 
         seen: set[str] = set()

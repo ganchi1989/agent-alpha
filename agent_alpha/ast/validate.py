@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
 
 from .nodes import CallNode, ConstNode, Node, VarNode, ensure_node
 from .registry import OperatorRegistry

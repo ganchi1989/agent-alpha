@@ -35,7 +35,7 @@ class SyntheticSpec:
     n_sectors: int
 
     @classmethod
-    def from_config(cls, cfg: dict[str, Any]) -> "SyntheticSpec":
+    def from_config(cls, cfg: dict[str, Any]) -> SyntheticSpec:
         """Create a spec from a loose config dictionary with defaults."""
 
         return cls(

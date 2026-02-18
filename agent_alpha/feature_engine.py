@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -15,15 +16,14 @@ from .features import (
     dist_to_vwap,
     ema,
     kdj_d,
-    kdj_k,
     kdj_j,
+    kdj_k,
     macd_hist,
     rsi,
     rv,
     sma,
     wick_ratio,
 )
-
 from .models import FeatureComponentSpec
 
 FeatureFn = Callable[..., pd.Series]
