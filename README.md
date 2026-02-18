@@ -6,8 +6,10 @@
 2. Generate a structured blueprint (well-known feature components + combine tree).
 3. Compile blueprint to AST deterministically with a restricted operator set:
    - `ADD`, `SUBTRACT`, `MULTIPLY`, `DIVIDE`
+   - comparisons: `GT`, `LT`, `GE`, `LE`, `EQ`, `NE`
+   - boolean: `AND`, `OR`
    - `RANK`, `ZSCORE`, `DELTA`, `DELAY`
-   - optional `WHERE`
+   - `WHERE` (optional; condition can be logical/comparison-based)
 4. Evaluate with agent-alpha's deterministic local AST evaluator.
 
 ## Requirements
