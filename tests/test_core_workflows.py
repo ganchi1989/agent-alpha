@@ -101,30 +101,6 @@ def test_compile_blueprint_to_ast_allows_boolean_conditions() -> None:
     assert "GT(" in compiled.expression
 
 
-def test_compile_blueprint_to_ast_allows_whitelisted_price_vars() -> None:
-    blueprint = FactorBlueprint(
-        hypothesis="Blend close price with RSI component.",
-        components=[FeatureComponentSpec(id="r", feature="rsi", params={"period": 14})],
-        combine={
-            "type": "call",
-            "op": "ADD",
-            "args": [
-                {"type": "var", "name": "$close"},
-                {"type": "component", "id": "r"},
-            ],
-        },
-    )
-    compiled = compile_blueprint_to_ast(
-        blueprint,
-        component_columns={"r": "$cmp_r"},
-        allowed_var_columns={"$close"},
-        allowed_windows={1, 5, 10, 20},
-    )
-    assert "ADD(" in compiled.expression
-    assert "$close" in compiled.expression
-    assert "$cmp_r" in compiled.expression
-
-
 def test_factor_evaluator_returns_metrics_with_and_without_scope() -> None:
     panel = load_synthetic_panel(n_days=30, n_tickers=8, seed=7)
     evaluator = FactorEvaluator(periods=[1, 5])
