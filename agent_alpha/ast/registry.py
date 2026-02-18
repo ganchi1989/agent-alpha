@@ -10,6 +10,34 @@ from ..operators.function_lib import SAFE_FUNCTIONS
 
 @dataclass(frozen=True, slots=True)
 class OperatorSpec:
+    """Immutable descriptor for a single AST operator.
+
+    Instances are created by :func:`build_default_registry` via introspection
+    of :data:`~agent_alpha.operators.function_lib.SAFE_FUNCTIONS` and the
+    ``_OPERATOR_OVERRIDES`` table.  They are frozen dataclasses so they can be
+    safely cached and shared.
+
+    Attributes:
+        name: Canonical uppercase operator name (e.g. ``"RANK"``).
+        fn: The callable that implements the operator.
+        min_arity: Minimum number of positional arguments the operator accepts.
+        max_arity: Maximum number of positional arguments, or ``None`` for
+            variadic operators.
+        variadic: ``True`` when the operator accepts ``*args``.
+        signature: String representation of the function signature (from
+            :func:`inspect.signature`).
+        arg_kinds: Tuple of per-argument kind hints (``"series_like"``,
+            ``"bool_like"``, ``"scalar"``, or ``"any"``).
+        return_kind: Kind hint for the operator's return value
+            (``"series_like"``, ``"bool_like"``, ``"branch_value"``, etc.).
+        window_arg_positions: Zero-based positions of arguments that are
+            interpreted as rolling-window sizes and must satisfy
+            *min_window* and the allowed-window set.
+        min_window: Smallest valid window value for this operator.
+        cost: Relative computational cost used for expression complexity
+            budgeting (arbitrary units; 1.0 = baseline).
+    """
+
     name: str
     fn: Callable[..., Any]
     min_arity: int
@@ -24,6 +52,27 @@ class OperatorSpec:
 
 
 class OperatorRegistry:
+    """Registry mapping operator names to their :class:`OperatorSpec` descriptors.
+
+    Maintains a canonical set of uppercase operator names (e.g. ``"ADD"``,
+    ``"RANK"``) and a case-insensitive alias map for fuzzy name resolution.
+    Registry instances are effectively immutable after construction; use
+    :func:`build_default_registry` to obtain the shared singleton.
+
+    Typical usage::
+
+        registry = build_default_registry()
+        spec = registry.get("RANK")          # raises KeyError if unknown
+        canonical = registry.resolve("rank") # → "RANK"
+        print(registry.prompt_operator_list())
+
+    Attributes:
+        _specs: Internal mapping from canonical operator name to
+            :class:`OperatorSpec`.
+        _aliases: Internal mapping from lowercased alias/canonical name to the
+            canonical uppercase name.
+    """
+
     def __init__(self, specs: dict[str, OperatorSpec], aliases: dict[str, str]):
         self._specs = specs
         self._aliases = aliases
@@ -58,7 +107,7 @@ class OperatorRegistry:
 def _introspect_arity(fn: Callable[..., Any]) -> tuple[int, int | None, bool, str]:
     try:
         sig = inspect.signature(fn)
-    except Exception:
+    except (ValueError, TypeError):
         return 1, None, True, "(...)"
 
     min_arity = 0

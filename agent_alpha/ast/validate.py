@@ -9,6 +9,16 @@ from .registry import OperatorRegistry
 
 @dataclass(slots=True)
 class ValidationError(ValueError):
+    """Raised when AST validation fails.
+
+    Attributes:
+        code: Short machine-readable error code (e.g. ``"unknown_operator"``,
+            ``"max_depth"``, ``"arity"``).
+        path: Dot-separated path to the offending node within the AST tree
+            (e.g. ``"root.args[0].args[1]"``).
+        message: Human-readable description of the violation.
+    """
+
     code: str
     path: str
     message: str
@@ -19,6 +29,28 @@ class ValidationError(ValueError):
 
 @dataclass(slots=True)
 class ValidationLimits:
+    """Structural constraints enforced during AST normalization and validation.
+
+    All limits are checked during a single depth-first walk of the AST by
+    :func:`normalize_and_validate_ast`.  Violating any limit raises
+    :class:`ValidationError`.
+
+    Attributes:
+        max_depth: Maximum allowed nesting depth (root counts as depth 1).
+            Default: 32.
+        max_nodes: Maximum total node count across the entire tree.
+            Default: 256.
+        allowed_columns: If set, only variable references whose names appear in
+            this set are permitted.  Names are normalized to their canonical
+            ``$``-prefixed form before comparison.
+        allowed_windows: If set, rolling-window arguments must belong to this
+            set (or be coerced to the nearest member when
+            *coerce_windows_to_allowed* is ``True``).
+        coerce_windows_to_allowed: When ``True`` and *allowed_windows* is
+            provided, out-of-set window values are silently rounded to the
+            nearest allowed value instead of raising.  Default: ``True``.
+    """
+
     max_depth: int = 32
     max_nodes: int = 256
     allowed_columns: set[str] | None = None

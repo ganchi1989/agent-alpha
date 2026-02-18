@@ -36,7 +36,7 @@ jobs:
         run: python -m mypy agent_alpha
 
       - name: Tests
-        run: python -m pytest
+        run: python -m pytest --cov=agent_alpha --cov-report=term-missing --cov-fail-under=50
 
       - name: Build
         run: python -m build

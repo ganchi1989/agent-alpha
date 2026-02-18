@@ -90,6 +90,35 @@ def rsi(
     value: str = "close",
     shift: int = 1,
 ) -> pd.Series:
+    """Compute the Relative Strength Index (RSI) for a single instrument.
+
+    RSI oscillates between 0 and 100.  Values above 70 are conventionally
+    considered overbought; below 30, oversold.  Edge cases are handled
+    explicitly: when both average gain and loss are zero the RSI is set to 50,
+    when only loss is zero it is set to 100, and when only gain is zero it is
+    set to 0.
+
+    Args:
+        df: DataFrame with a close column, or a bare close Series.
+        period: Look-back window in bars.  Must be >= 1.  Default: 14.
+        method: Smoothing method for gain/loss averages.
+
+            - ``"wilder"`` — Wilder's RMA (default; matches TradingView RSI).
+            - ``"ema"`` — Exponential moving average (alpha = 2/(period+1)).
+            - ``"sma"`` — Simple rolling mean.
+
+        value: Column name to use when *df* is a DataFrame.  Default:
+            ``"close"``.
+        shift: Bars to shift the result forward to prevent look-ahead bias.
+            Default: 1.  Set to ``0`` to disable.
+
+    Returns:
+        Float64 Series named ``"rsi_{period}_{method}"``, aligned to
+        ``df.index``.  The first ``period`` bars are ``NaN`` during warm-up.
+
+    Raises:
+        ValueError: If *period* <= 0, *shift* < 0, or *method* is invalid.
+    """
     method = _validate_method(method)
     period = _validate_period(period)
     shift = int(shift)

@@ -86,6 +86,35 @@ def atr(
     close: str = "close",
     shift: int = 1,
 ) -> pd.Series:
+    """Compute the Average True Range (ATR) for a single instrument.
+
+    ATR measures market volatility as a rolling average of the True Range,
+    where True Range = max(high-low, |high-prev_close|, |low-prev_close|).
+
+    Args:
+        df: DataFrame with OHLC columns.  A bare Series is rejected.
+        period: Look-back window in bars.  Must be >= 1.  Default: 14.
+        method: Smoothing method for averaging the True Range.
+
+            - ``"wilder"`` — Wilder's RMA (default; matches TradingView ATR).
+            - ``"ema"`` — Exponential moving average (alpha = 2/(period+1)).
+            - ``"sma"`` — Simple rolling mean.
+
+        high: Column name for high prices.  Default: ``"high"``.
+        low: Column name for low prices.  Default: ``"low"``.
+        close: Column name for close prices.  Default: ``"close"``.
+        shift: Number of bars to shift the result forward to avoid look-ahead
+            bias.  ``shift=1`` (default) aligns the ATR value with the *next*
+            bar's open.  Set to ``0`` to disable.
+
+    Returns:
+        Float64 Series named ``"atr_{period}_{method}"``, aligned to
+        ``df.index``.  The first ``period`` bars are ``NaN`` due to warm-up.
+
+    Raises:
+        TypeError: If *df* is a Series rather than a DataFrame.
+        ValueError: If *period* <= 0, *shift* < 0, or *method* is invalid.
+    """
     method = _validate_method(method)
     period = _validate_period(period)
     shift = int(shift)

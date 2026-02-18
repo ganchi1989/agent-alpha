@@ -30,7 +30,7 @@ def _coerce_window(value: Any, default: int = 1, minimum: int = 1) -> int:
             raw = non_null.iloc[0]
     try:
         out = int(float(raw))
-    except Exception:
+    except (ValueError, TypeError):
         out = int(default)
     if out < int(minimum):
         out = int(minimum)
@@ -107,6 +107,7 @@ def _groupby_datetime(series: pd.Series):
 
 
 def DELTA(x: Any, p: int = 1) -> pd.Series:
+    """Period-over-period difference: ``x - x.shift(p)``, grouped by instrument."""
     s = _as_series(x)
     if not isinstance(s, pd.Series):
         return pd.Series([np.nan])
@@ -115,12 +116,13 @@ def DELTA(x: Any, p: int = 1) -> pd.Series:
         return SUBTRACT(s, p_val)
     try:
         period = int(p_val)
-    except Exception:
+    except (ValueError, TypeError):
         period = 1
     return _groupby_instrument(s).transform(lambda v: v.diff(periods=period))
 
 
 def DELAY(x: Any, p: int = 1) -> pd.Series:
+    """Lag operator: ``x.shift(p)`` grouped by instrument."""
     p = _coerce_window(p, default=1, minimum=0)
     s = _as_series(x)
     if not isinstance(s, pd.Series):
@@ -129,6 +131,12 @@ def DELAY(x: Any, p: int = 1) -> pd.Series:
 
 
 def RANK(x: Any, p: int | None = None) -> pd.Series:
+    """Cross-sectional percentile rank (0–1).
+
+    When *p* is given, delegates to :func:`TS_RANK` for a rolling rank over the
+    last *p* observations per instrument.  Without *p*, ranks across all
+    instruments on each date.
+    """
     if p is not None:
         return TS_RANK(x, p)
     s = _as_series(x)
@@ -138,6 +146,12 @@ def RANK(x: Any, p: int | None = None) -> pd.Series:
 
 
 def ZSCORE(x: Any, p: int | None = None) -> pd.Series:
+    """Standardize to zero mean and unit variance.
+
+    When *p* is given, delegates to :func:`TS_ZSCORE` for a rolling z-score
+    per instrument.  Without *p*, standardizes cross-sectionally on each date.
+    Zero-std groups produce ``NaN``.
+    """
     if p is not None:
         return TS_ZSCORE(x, p)
     s = _as_series(x)
@@ -370,7 +384,7 @@ def SUM(x: Any, *args: Any) -> Any:
         for arg in args:
             try:
                 numeric.append(int(float(_as_series(arg))))
-            except Exception:
+            except (ValueError, TypeError):
                 continue
         if numeric:
             if len(numeric) >= 2 and numeric[0] == 0:
@@ -384,6 +398,7 @@ def SUM(x: Any, *args: Any) -> Any:
 
 
 def ADD(*args: Any) -> Any:
+    """Element-wise addition of two or more series/scalars."""
     if not args:
         raise ValueError("ADD requires at least one argument")
     out = args[0]
@@ -393,6 +408,7 @@ def ADD(*args: Any) -> Any:
 
 
 def SUBTRACT(*args: Any) -> Any:
+    """Element-wise subtraction.  With one arg, equivalent to ``NEG(x)``."""
     if not args:
         raise ValueError("SUBTRACT requires at least one argument")
     if len(args) == 1:
@@ -404,6 +420,7 @@ def SUBTRACT(*args: Any) -> Any:
 
 
 def MULTIPLY(*args: Any) -> Any:
+    """Element-wise multiplication of two or more series/scalars."""
     if not args:
         raise ValueError("MULTIPLY requires at least one argument")
     out = args[0]
@@ -413,6 +430,7 @@ def MULTIPLY(*args: Any) -> Any:
 
 
 def DIVIDE(*args: Any) -> Any:
+    """Element-wise true division.  Division by zero produces ``NaN`` or ``±inf``."""
     if not args:
         raise ValueError("DIVIDE requires at least one argument")
     if len(args) == 1:
@@ -470,26 +488,32 @@ def MIN(*args: Any) -> Any:
 
 
 def GT(x: Any, y: Any = 0) -> Any:
+    """Element-wise greater-than comparison (``x > y``)."""
     return _binary_op(x, y, operator.gt)
 
 
 def LT(x: Any, y: Any = 0) -> Any:
+    """Element-wise less-than comparison (``x < y``)."""
     return _binary_op(x, y, operator.lt)
 
 
 def GE(x: Any, y: Any = 0) -> Any:
+    """Element-wise greater-than-or-equal comparison (``x >= y``)."""
     return _binary_op(x, y, operator.ge)
 
 
 def LE(x: Any, y: Any = 0) -> Any:
+    """Element-wise less-than-or-equal comparison (``x <= y``)."""
     return _binary_op(x, y, operator.le)
 
 
 def EQ(x: Any, y: Any = 0) -> Any:
+    """Element-wise equality comparison (``x == y``)."""
     return _binary_op(x, y, operator.eq)
 
 
 def NE(x: Any, y: Any = 0) -> Any:
+    """Element-wise inequality comparison (``x != y``)."""
     return _binary_op(x, y, operator.ne)
 
 
@@ -500,6 +524,7 @@ def _bool_view(x: Any) -> Any:
 
 
 def AND(*args: Any) -> Any:
+    """Element-wise logical AND across two or more boolean-like series/scalars."""
     if not args:
         raise ValueError("AND requires at least one argument")
     if len(args) == 1:
@@ -511,6 +536,7 @@ def AND(*args: Any) -> Any:
 
 
 def OR(*args: Any) -> Any:
+    """Element-wise logical OR across two or more boolean-like series/scalars."""
     if not args:
         raise ValueError("OR requires at least one argument")
     if len(args) == 1:
@@ -522,6 +548,11 @@ def OR(*args: Any) -> Any:
 
 
 def WHERE(condition: Any, true_value: Any, false_value: Any = np.nan) -> Any:
+    """Conditional selection: return *true_value* where *condition* is truthy, else *false_value*.
+
+    Equivalent to ``np.where(condition, true_value, false_value)`` with
+    automatic index alignment across all three arguments.
+    """
     target = _target_index(condition, true_value)
     if target is None:
         target = _target_index(condition, false_value)
