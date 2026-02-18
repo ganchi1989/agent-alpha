@@ -39,7 +39,6 @@ panel = load_synthetic_panel(n_days=220, n_tickers=50)
 
 workflow = AgentAlphaWorkflow(
     model_name="gpt-5-mini",
-    temperature=0.1,
     periods=(1, 5, 10),
 )
 
@@ -69,6 +68,7 @@ agent-alpha-run --goal "Generate a robust mean-reversion alpha hypothesis from O
 Common options:
 
 - `--model gpt-5-mini`
+- `--temperature 0.1` (for models that support temperature)
 - `--max-attempts 2`
 - `--n-days 220`
 - `--n-tickers 50`

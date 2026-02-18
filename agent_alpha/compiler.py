@@ -14,9 +14,17 @@ from .models import FactorBlueprint
 
 ALLOWED_COMBINE_OPERATORS = {
     "ADD",
+    "AND",
     "SUBTRACT",
     "MULTIPLY",
     "DIVIDE",
+    "GT",
+    "LT",
+    "GE",
+    "LE",
+    "EQ",
+    "NE",
+    "OR",
     "RANK",
     "ZSCORE",
     "DELTA",
@@ -50,6 +58,14 @@ def _validate_arity(op: str, argc: int, path: str) -> None:
     if op in {"ADD", "SUBTRACT", "MULTIPLY", "DIVIDE"}:
         if argc < 2:
             raise ValueError(f"{path}: {op} requires at least 2 args, got {argc}")
+        return
+    if op in {"AND", "OR"}:
+        if argc < 1:
+            raise ValueError(f"{path}: {op} requires at least 1 arg, got {argc}")
+        return
+    if op in {"GT", "LT", "GE", "LE", "EQ", "NE"}:
+        if argc != 2:
+            raise ValueError(f"{path}: {op} requires exactly 2 args, got {argc}")
         return
     if op in {"RANK", "ZSCORE", "DELTA", "DELAY"}:
         if argc not in {1, 2}:

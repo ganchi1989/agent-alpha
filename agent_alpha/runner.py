@@ -18,6 +18,7 @@ def run_agent_alpha(
     *,
     api_key: str | None = None,
     model_name: str = "gpt-5-mini",
+    temperature: float | None = None,
     n_days: int = 220,
     n_tickers: int = 50,
     max_attempts: int = 2,
@@ -29,6 +30,7 @@ def run_agent_alpha(
         user_goal: Natural-language research objective.
         api_key: Optional OpenAI API key injected into `OPENAI_API_KEY`.
         model_name: Chat model name used by the workflow agents.
+        temperature: Optional sampling temperature for models that support it.
         n_days: Number of business days in synthetic panel generation.
         n_tickers: Number of synthetic instruments.
         max_attempts: Maximum blueprint repair attempts.
@@ -42,7 +44,7 @@ def run_agent_alpha(
         os.environ["OPENAI_API_KEY"] = api_key
 
     panel = load_synthetic_panel(n_days=n_days, n_tickers=n_tickers, seed=7)
-    workflow = AgentAlphaWorkflow(model_name=model_name)
+    workflow = AgentAlphaWorkflow(model_name=model_name, temperature=temperature)
     state = workflow.run(
         user_goal=user_goal,
         panel=panel,
@@ -56,6 +58,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run agent-alpha blueprint to AST workflow.")
     parser.add_argument("--goal", required=True, help="User goal / research objective")
     parser.add_argument("--model", default="gpt-5-mini", help="Model name (default: gpt-5-mini)")
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=None,
+        help="Optional sampling temperature (ignored by gpt-5 models).",
+    )
     parser.add_argument("--max-attempts", type=int, default=2, help="Blueprint repair retries")
     parser.add_argument("--n-days", type=int, default=220, help="Synthetic panel business days")
     parser.add_argument("--n-tickers", type=int, default=50, help="Synthetic panel ticker count")
@@ -71,6 +79,7 @@ def main(argv: list[str] | None = None) -> int:
     output = run_agent_alpha(
         user_goal=args.goal,
         model_name=args.model,
+        temperature=args.temperature,
         max_attempts=args.max_attempts,
         n_days=args.n_days,
         n_tickers=args.n_tickers,

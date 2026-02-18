@@ -14,6 +14,8 @@ from .features import (
     cvd,
     dist_to_vwap,
     ema,
+    kdj_d,
+    kdj_k,
     kdj_j,
     macd_hist,
     rsi,
@@ -117,6 +119,18 @@ FEATURE_DEFINITIONS: dict[str, FeatureDefinition] = {
         description="KDJ J-line oscillator.",
         default_params={"period": 9, "k_smooth": 3, "d_smooth": 3, "shift": 1},
     ),
+    "kdj_d": FeatureDefinition(
+        name="kdj_d",
+        fn=kdj_d,
+        description="KDJ D-line oscillator.",
+        default_params={"period": 9, "k_smooth": 3, "d_smooth": 3, "shift": 1},
+    ),
+    "kdj_k": FeatureDefinition(
+        name="kdj_k",
+        fn=kdj_k,
+        description="KDJ K-line oscillator.",
+        default_params={"period": 9, "k_smooth": 3, "d_smooth": 3, "shift": 1},
+    ),
 }
 
 
@@ -196,7 +210,15 @@ def compute_feature_component(panel: pd.DataFrame, component: FeatureComponentSp
 
     for instrument, group in panel.groupby(level="instrument", sort=False):
         local = _prepare_single_instrument_frame(group)
-        out = definition.fn(local, **params)
+        try:
+            out = definition.fn(local, **params)
+        except KeyError as exc:
+            missing = exc.args[0] if exc.args else "<unknown>"
+            raise ValueError(
+                f"Feature {feature_key!r} referenced missing input column {missing!r}. "
+                f"Valid input columns: {sorted(local.columns)}. "
+                f"Component id={component.id!r}, params={params!r}"
+            ) from exc
         series = _as_series(out, local.index)
         idx = pd.MultiIndex.from_arrays(
             [series.index, np.repeat(instrument, len(series))],

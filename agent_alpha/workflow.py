@@ -65,7 +65,7 @@ class AgentAlphaWorkflow:
 
     Key attributes:
         model_name: Chat model name used for both agent nodes.
-        temperature: Sampling temperature passed to the chat model.
+        temperature: Optional sampling temperature for supported models.
         periods: Forward-return horizons used by the evaluator.
         allowed_windows: Rolling windows accepted by AST validation.
         max_attempts: Retry budget for blueprint regeneration after failures.
@@ -85,18 +85,18 @@ class AgentAlphaWorkflow:
     def __init__(
         self,
         model_name: str = "gpt-5-mini",
-        temperature: float = 0.1,
+        temperature: float | None = None,
         periods: tuple[int, ...] = (1, 5, 10),
         allowed_windows: tuple[int, ...] = (1, 2, 3, 5, 10, 20, 30, 60, 120, 252),
         max_attempts: int = 2,
     ):
         self.model_name = model_name
-        self.temperature = float(temperature)
+        self.temperature = None if temperature is None else float(temperature)
         self.periods = tuple(int(p) for p in periods)
         self.allowed_windows = tuple(sorted({int(w) for w in allowed_windows}))
         self.max_attempts = int(max_attempts)
 
-        self.model = ChatOpenAI(model=self.model_name, temperature=self.temperature)
+        self.model = ChatOpenAI(**self._chat_model_kwargs(self.model_name, self.temperature))
         self.hypothesis_agent = create_agent(
             model=self.model,
             tools=[],
@@ -117,6 +117,20 @@ class AgentAlphaWorkflow:
             ),
         )
         self.graph = self._build_graph()
+
+    @staticmethod
+    def _supports_temperature(model_name: str) -> bool:
+        name = str(model_name).strip().lower()
+        return not name.startswith("gpt-5")
+
+    @classmethod
+    def _chat_model_kwargs(
+        cls, model_name: str, temperature: float | None
+    ) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {"model": model_name}
+        if temperature is not None and cls._supports_temperature(model_name):
+            kwargs["temperature"] = float(temperature)
+        return kwargs
 
     @staticmethod
     def _extract_structured(result: dict[str, Any], schema: type[BaseModel]) -> BaseModel:
