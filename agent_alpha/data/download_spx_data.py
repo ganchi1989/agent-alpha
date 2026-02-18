@@ -54,8 +54,12 @@ def build_spx_data(
             "volume": "$volume",
         }
     )
-    agent_panel = agent_panel[["datetime", "instrument", "$open", "$high", "$low", "$close", "$volume"]]
-    agent_panel = agent_panel.sort_values(["datetime", "instrument"]).drop_duplicates(["datetime", "instrument"])
+    agent_panel = agent_panel[
+        ["datetime", "instrument", "$open", "$high", "$low", "$close", "$volume"]
+    ]
+    agent_panel = agent_panel.sort_values(["datetime", "instrument"]).drop_duplicates(
+        ["datetime", "instrument"]
+    )
 
     panel_path = output_dir / "spx_agent_panel.csv"
     agent_panel.to_csv(panel_path, index=False)
@@ -76,8 +80,12 @@ def build_spx_data(
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Download and prepare SPX data for agent-alpha workflow.")
-    parser.add_argument("--start-date", default="2018-01-01", help="Inclusive start date (YYYY-MM-DD).")
+    parser = argparse.ArgumentParser(
+        description="Download and prepare SPX data for agent-alpha workflow."
+    )
+    parser.add_argument(
+        "--start-date", default="2018-01-01", help="Inclusive start date (YYYY-MM-DD)."
+    )
     parser.add_argument("--end-date", default="2026-02-18", help="Inclusive end date (YYYY-MM-DD).")
     parser.add_argument(
         "--output-dir",
@@ -85,7 +93,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Directory for universe/prices/panel output files.",
     )
     parser.add_argument("--batch-size", type=int, default=100, help="Yahoo download batch size.")
-    parser.add_argument("--pause-seconds", type=float, default=0.2, help="Pause between Yahoo batches.")
+    parser.add_argument(
+        "--pause-seconds", type=float, default=0.2, help="Pause between Yahoo batches."
+    )
     parser.add_argument("--no-auto-adjust", action="store_true", help="Disable Yahoo auto-adjust.")
     return parser
 
@@ -111,4 +121,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -1,3 +1,5 @@
+"""Deterministic factor evaluation utilities for AST-based expressions."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -17,6 +19,28 @@ from .config import FactorEngineConfig
 
 @dataclass
 class FactorEvaluator:
+    """Evaluate compiled factor expressions and summarize predictive metrics.
+
+    Attributes:
+        periods: Forward-return horizons (business days) used for scoring.
+        min_cross_section: Minimum instruments per date for RankIC computation.
+        engine_config: Validation limits and AST version expectations.
+        registry: Operator registry used by the AST interpreter.
+        interpreter: Runtime interpreter initialized from `registry`.
+
+    Invariants:
+        - Input panels use MultiIndex `("datetime", "instrument")`.
+        - Returned factor series is aligned to the input panel index.
+        - `calculate_ex_ante_ir` metrics are computed on either full data or
+          the optional scoped universe mask.
+
+    Typical usage:
+        >>> evaluator = FactorEvaluator(periods=[1, 5, 10])
+        >>> factor = evaluator.calculate_factor(panel, factor_ast)
+        >>> fwd = evaluator.calculate_forward_returns(panel)
+        >>> metrics = evaluator.calculate_ex_ante_ir(factor, fwd)
+    """
+
     periods: list[int]
     min_cross_section: int = 5
     engine_config: FactorEngineConfig = field(default_factory=FactorEngineConfig)
@@ -31,7 +55,9 @@ class FactorEvaluator:
         return "".join(ch for ch in str(name).strip().lower() if ch.isalnum())
 
     @classmethod
-    def _pick_column(cls, frame: pd.DataFrame, aliases: tuple[str, ...], *, required: bool) -> str | None:
+    def _pick_column(
+        cls, frame: pd.DataFrame, aliases: tuple[str, ...], *, required: bool
+    ) -> str | None:
         lookup = {cls._normalize_name(col): col for col in frame.columns}
         for alias in aliases:
             key = cls._normalize_name(alias)
@@ -62,7 +88,9 @@ class FactorEvaluator:
         if universe_mask is None:
             return None
         if not isinstance(index, pd.MultiIndex):
-            raise ValueError("Universe filtering requires factor index to be MultiIndex(datetime, instrument)")
+            raise ValueError(
+                "Universe filtering requires factor index to be MultiIndex(datetime, instrument)"
+            )
         if list(index.names) != ["datetime", "instrument"]:
             index = index.set_names(["datetime", "instrument"])
 
@@ -76,8 +104,18 @@ class FactorEvaluator:
             parsed = cls._parse_membership(universe_mask)
             active = parsed[parsed].index.astype(str)
             active_tickers = set(pd.Index(active).str.upper().str.replace(".", "-", regex=False))
-            flags = index.get_level_values("instrument").astype(str).str.upper().str.replace(".", "-", regex=False)
-            return pd.Series(np.asarray(flags.isin(active_tickers), dtype=bool), index=index, name="in_universe", dtype=bool)
+            flags = (
+                index.get_level_values("instrument")
+                .astype(str)
+                .str.upper()
+                .str.replace(".", "-", regex=False)
+            )
+            return pd.Series(
+                np.asarray(flags.isin(active_tickers), dtype=bool),
+                index=index,
+                name="in_universe",
+                dtype=bool,
+            )
 
         if not isinstance(universe_mask, pd.DataFrame):
             raise TypeError("universe_mask must be a pandas DataFrame/Series or None")
@@ -113,7 +151,9 @@ class FactorEvaluator:
         else:
             parsed_flag = cls._parse_membership(universe_mask[flag_col])
             if cls._normalize_name(flag_col) == "weight":
-                parsed_flag = (pd.to_numeric(universe_mask[flag_col], errors="coerce").fillna(0.0) > 0.0).astype(bool)
+                parsed_flag = (
+                    pd.to_numeric(universe_mask[flag_col], errors="coerce").fillna(0.0) > 0.0
+                ).astype(bool)
             normalized["in_universe"] = parsed_flag.astype(bool)
 
         normalized = normalized[normalized["instrument"] != ""].copy()
@@ -127,8 +167,18 @@ class FactorEvaluator:
 
         if normalized["datetime"].notna().sum() == 0:
             active_tickers = set(normalized.loc[normalized["in_universe"], "instrument"])
-            flags = index.get_level_values("instrument").astype(str).str.upper().str.replace(".", "-", regex=False)
-            return pd.Series(np.asarray(flags.isin(active_tickers), dtype=bool), index=index, name="in_universe", dtype=bool)
+            flags = (
+                index.get_level_values("instrument")
+                .astype(str)
+                .str.upper()
+                .str.replace(".", "-", regex=False)
+            )
+            return pd.Series(
+                np.asarray(flags.isin(active_tickers), dtype=bool),
+                index=index,
+                name="in_universe",
+                dtype=bool,
+            )
 
         normalized = normalized.dropna(subset=["datetime"])
         if normalized.empty:
@@ -140,7 +190,9 @@ class FactorEvaluator:
             .max()
         )
 
-        panel_dates = pd.Index(index.get_level_values("datetime").unique(), name="datetime").sort_values()
+        panel_dates = pd.Index(
+            index.get_level_values("datetime").unique(), name="datetime"
+        ).sort_values()
         panel_tickers = (
             pd.Index(index.get_level_values("instrument").astype(str).unique(), name="instrument")
             .str.upper()
@@ -148,7 +200,9 @@ class FactorEvaluator:
             .sort_values()
         )
 
-        matrix = snapshots.pivot(index="datetime", columns="instrument", values="in_universe").sort_index()
+        matrix = snapshots.pivot(
+            index="datetime", columns="instrument", values="in_universe"
+        ).sort_index()
         matrix = matrix.reindex(columns=panel_tickers, fill_value=0.0)
         matrix = matrix.reindex(panel_dates).ffill().fillna(0.0)
 
@@ -173,7 +227,9 @@ class FactorEvaluator:
     def _normalize_result(result: Any, panel: pd.DataFrame) -> pd.Series:
         if isinstance(result, pd.DataFrame):
             if result.shape[1] != 1:
-                raise ValueError("Factor expression returned multi-column DataFrame; expected one series")
+                raise ValueError(
+                    "Factor expression returned multi-column DataFrame; expected one series"
+                )
             series = result.iloc[:, 0]
         elif isinstance(result, pd.Series):
             series = result
@@ -202,7 +258,9 @@ class FactorEvaluator:
             context[plain.capitalize()] = panel[col]
         return context
 
-    def _calculate_factor_ast(self, panel: pd.DataFrame, expression: dict[str, Any] | Node) -> pd.Series:
+    def _calculate_factor_ast(
+        self, panel: pd.DataFrame, expression: dict[str, Any] | Node
+    ) -> pd.Series:
         version, node = decode_factor_ast(expression)
         expected_version = str(self.engine_config.ast_version)
         if expected_version and version != expected_version:
@@ -212,7 +270,9 @@ class FactorEvaluator:
             max_depth=int(self.engine_config.max_ast_depth),
             max_nodes=int(self.engine_config.max_ast_nodes),
             allowed_columns=set(panel.columns),
-            allowed_windows=set(self.engine_config.allowed_windows) if self.engine_config.allowed_windows else None,
+            allowed_windows=set(self.engine_config.allowed_windows)
+            if self.engine_config.allowed_windows
+            else None,
         )
         normalized = normalize_and_validate_ast(node, self.registry, limits=limits)
         infer_node_type(normalized, self.registry)
@@ -226,6 +286,8 @@ class FactorEvaluator:
         return self._normalize_result(result, panel)
 
     def calculate_factor(self, panel: pd.DataFrame, expression: dict[str, Any] | Node) -> pd.Series:
+        """Evaluate one AST expression and return a numeric factor series."""
+
         self._validate_panel(panel)
         if isinstance(expression, (dict, VarNode, ConstNode, CallNode)):
             return self._calculate_factor_ast(panel, expression)
@@ -234,7 +296,11 @@ class FactorEvaluator:
             f"got {type(expression)!r}"
         )
 
-    def calculate_forward_returns(self, panel: pd.DataFrame, periods: list[int] | None = None) -> pd.DataFrame:
+    def calculate_forward_returns(
+        self, panel: pd.DataFrame, periods: list[int] | None = None
+    ) -> pd.DataFrame:
+        """Compute per-instrument forward returns for configured horizons."""
+
         self._validate_panel(panel)
         use_periods = periods or self.periods
 
@@ -289,6 +355,17 @@ class FactorEvaluator:
         forward_returns: pd.DataFrame,
         universe_mask: pd.DataFrame | pd.Series | None = None,
     ) -> dict[str, Any]:
+        """Calculate RankIC and RankIC-IR aggregates over forward-return periods.
+
+        Args:
+            factor: Factor values aligned by `(datetime, instrument)`.
+            forward_returns: Data frame of forward return columns.
+            universe_mask: Optional membership mask used to scope evaluation.
+
+        Returns:
+            Dictionary with overall metrics, per-period metrics, and scope stats.
+        """
+
         if not isinstance(factor, pd.Series):
             raise TypeError("factor must be a pandas Series")
         if not isinstance(forward_returns, pd.DataFrame):
@@ -329,7 +406,11 @@ class FactorEvaluator:
         scoped_tickers = total_tickers
         if mask is not None:
             scoped_index = factor.index[mask.to_numpy()]
-            scoped_tickers = int(scoped_index.get_level_values("instrument").nunique()) if len(scoped_index) else 0
+            scoped_tickers = (
+                int(scoped_index.get_level_values("instrument").nunique())
+                if len(scoped_index)
+                else 0
+            )
 
         return {
             "rank_ic": overall_rank_ic,

@@ -1,3 +1,5 @@
+"""LangGraph workflow that turns a research goal into an evaluated factor AST."""
+
 from __future__ import annotations
 
 import json
@@ -30,6 +32,12 @@ def list_combine_operators() -> str:
 
 
 class AgentAlphaState(TypedDict, total=False):
+    """Mutable state container passed between LangGraph nodes.
+
+    The workflow progressively fills this mapping with hypothesis text,
+    blueprint output, compiled AST artifacts, and evaluation metrics.
+    """
+
     user_goal: str
     panel: pd.DataFrame
     universe_mask: pd.DataFrame | pd.Series | None
@@ -49,6 +57,31 @@ class AgentAlphaState(TypedDict, total=False):
 
 
 class AgentAlphaWorkflow:
+    """High-level orchestration for the agent-alpha factor ideation pipeline.
+
+    Purpose:
+        Coordinate three stages: hypothesis generation, blueprint generation,
+        and deterministic compile/evaluate execution.
+
+    Key attributes:
+        model_name: Chat model name used for both agent nodes.
+        temperature: Sampling temperature passed to the chat model.
+        periods: Forward-return horizons used by the evaluator.
+        allowed_windows: Rolling windows accepted by AST validation.
+        max_attempts: Retry budget for blueprint regeneration after failures.
+        graph: Compiled LangGraph state machine used in `run`.
+
+    Invariants:
+        - Deterministic compile/evaluate stage never executes without a
+          structured blueprint in state.
+        - Retries are bounded by `max_attempts`.
+
+    Example:
+        >>> workflow = AgentAlphaWorkflow(model_name="gpt-5-mini")
+        >>> state = workflow.run(user_goal="Mean reversion from OHLCV", panel=panel)
+        >>> state["metrics"]["rank_ic"]
+    """
+
     def __init__(
         self,
         model_name: str = "gpt-5-mini",
@@ -101,7 +134,9 @@ class AgentAlphaWorkflow:
             "Return one concise alpha hypothesis and rationale."
         )
         try:
-            result = self.hypothesis_agent.invoke({"messages": [{"role": "user", "content": prompt}]})
+            result = self.hypothesis_agent.invoke(
+                {"messages": [{"role": "user", "content": prompt}]}
+            )
             output = self._extract_structured(result, HypothesisOutput)
             return {
                 "hypothesis": output.hypothesis,
@@ -109,7 +144,9 @@ class AgentAlphaWorkflow:
                 "error": None,
             }
         except Exception as exc:
-            fallback = str(state.get("user_goal", "Robust cross-sectional alpha from OHLCV")).strip()
+            fallback = str(
+                state.get("user_goal", "Robust cross-sectional alpha from OHLCV")
+            ).strip()
             fallback = " ".join(fallback.split())
             if len(fallback) < 8:
                 fallback = "Robust cross-sectional alpha factor from OHLCV."
@@ -141,7 +178,9 @@ class AgentAlphaWorkflow:
             f"{repair}\n"
         )
         try:
-            result = self.blueprint_agent.invoke({"messages": [{"role": "user", "content": prompt}]})
+            result = self.blueprint_agent.invoke(
+                {"messages": [{"role": "user", "content": prompt}]}
+            )
             blueprint = self._extract_structured(result, FactorBlueprint)
             return {
                 "blueprint": blueprint,
@@ -163,7 +202,9 @@ class AgentAlphaWorkflow:
         universe_mask = state.get("universe_mask")
         blueprint = state["blueprint"]
         try:
-            augmented_panel, component_columns = compute_blueprint_components(panel, blueprint.components)
+            augmented_panel, component_columns = compute_blueprint_components(
+                panel, blueprint.components
+            )
             compiled = compile_blueprint_to_ast(
                 blueprint,
                 component_columns,
@@ -229,6 +270,18 @@ class AgentAlphaWorkflow:
         max_attempts: int | None = None,
         universe_mask: pd.DataFrame | pd.Series | None = None,
     ) -> AgentAlphaState:
+        """Execute the full workflow and return the final state.
+
+        Args:
+            user_goal: Research objective that seeds hypothesis generation.
+            panel: Input OHLCV panel indexed by `(datetime, instrument)`.
+            max_attempts: Optional override for blueprint retry limit.
+            universe_mask: Optional evaluation-scope mask for metric reporting.
+
+        Returns:
+            Final `AgentAlphaState` with hypothesis, blueprint, AST, and metrics.
+        """
+
         initial_state: AgentAlphaState = {
             "user_goal": user_goal,
             "panel": panel,

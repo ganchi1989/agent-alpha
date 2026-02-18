@@ -1,3 +1,5 @@
+"""Compile blueprint combine trees into validated factor AST payloads."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -8,7 +10,6 @@ from .ast.nodes import CallNode, ConstNode, Node, VarNode
 from .ast.registry import build_default_registry
 from .ast.types import infer_node_type
 from .ast.validate import ValidationLimits, normalize_and_validate_ast
-
 from .models import FactorBlueprint
 
 ALLOWED_COMBINE_OPERATORS = {
@@ -28,6 +29,14 @@ _BOOL_RETURN_OPS = {"GT", "LT", "GE", "LE", "EQ", "NE", "AND", "OR"}
 
 @dataclass(frozen=True, slots=True)
 class CompileResult:
+    """Compiler output bundle used by downstream evaluation and reporting.
+
+    Attributes:
+        factor_ast: Serialized AST envelope validated against schema constraints.
+        expression: Human-readable expression rendering.
+        summary: Short expression summary with node/depth statistics.
+    """
+
     factor_ast: dict[str, Any]
     expression: str
     summary: str
@@ -116,6 +125,24 @@ def compile_blueprint_to_ast(
     max_depth: int = 64,
     max_nodes: int = 512,
 ) -> CompileResult:
+    """Compile a validated blueprint into a normalized AST payload.
+
+    Args:
+        blueprint: Structured blueprint produced by the LLM step.
+        component_columns: Mapping from component IDs to concrete panel columns.
+        allowed_windows: Optional allow-list for rolling-window operators.
+        max_depth: Maximum AST depth accepted during validation.
+        max_nodes: Maximum AST node count accepted during validation.
+
+    Returns:
+        CompileResult containing serialized AST and human-readable summaries.
+
+    Raises:
+        ValueError: If the combine tree is malformed or uses unsupported operators.
+        ValidationError: If AST constraints are violated.
+        TypeInferenceError: If operator argument/return kinds are inconsistent.
+    """
+
     if not isinstance(blueprint.combine, Mapping):
         raise ValueError("blueprint.combine must be an object")
 

@@ -48,7 +48,12 @@ def ema(
 
     alpha = _alpha_from_period(period)
     s = df if isinstance(df, pd.Series) else df[value]
-    out = s.astype("float64").ewm(alpha=alpha, adjust=False, min_periods=period).mean().astype("float64")
+    out = (
+        s.astype("float64")
+        .ewm(alpha=alpha, adjust=False, min_periods=period)
+        .mean()
+        .astype("float64")
+    )
     if shift:
         out = out.shift(shift)
     out.name = f"ema_{period}"

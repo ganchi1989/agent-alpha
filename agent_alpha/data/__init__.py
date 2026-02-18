@@ -1,4 +1,4 @@
-"""Internal data loaders and market data builders for ast_alpha."""
+"""Data loaders and market-data builders used by agent-alpha."""
 
 from .market_data import SP500UniverseBuilder, YahooPanelBuilder
 from .panel import SyntheticSpec, generate_synthetic_panel, load_panel, validate_panel_df
@@ -12,7 +12,7 @@ def load_synthetic_panel(
     start_date: str = "2018-01-01",
     n_sectors: int = 8,
 ):
-    """Backward-compatible synthetic loader expected by runner and examples."""
+    """Build a synthetic panel in workflow-compatible index/column format."""
     spec = SyntheticSpec(
         seed=int(seed),
         start_date=str(start_date),
@@ -21,17 +21,22 @@ def load_synthetic_panel(
         n_sectors=int(n_sectors),
     )
     panel_df = generate_synthetic_panel(spec)
-    return panel_df.rename(
-        columns={
-            "date": "datetime",
-            "ticker": "instrument",
-            "open": "$open",
-            "high": "$high",
-            "low": "$low",
-            "close": "$close",
-            "volume": "$volume",
-        }
-    ).set_index(["datetime", "instrument"]).sort_index()
+    return (
+        panel_df.rename(
+            columns={
+                "date": "datetime",
+                "ticker": "instrument",
+                "open": "$open",
+                "high": "$high",
+                "low": "$low",
+                "close": "$close",
+                "volume": "$volume",
+            }
+        )
+        .set_index(["datetime", "instrument"])
+        .sort_index()
+    )
+
 
 __all__ = [
     "SP500UniverseBuilder",

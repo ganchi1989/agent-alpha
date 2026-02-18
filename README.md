@@ -17,10 +17,16 @@
 
 ## Install
 
-From repo root:
+From PyPI:
 
-```powershell
-pip install -e .\agent-alpha
+```bash
+pip install agent-alpha
+```
+
+From source:
+
+```bash
+pip install -e .
 ```
 
 ## Quick Start
@@ -54,6 +60,35 @@ print(result["metrics"])
 If you pass `universe_mask`, factor/feature computation still runs on the full panel,
 while RankIC/ICIR/ex-ante IR are computed only on the masked universe rows.
 
+## CLI
+
+```bash
+agent-alpha-run --goal "Generate a robust mean-reversion alpha hypothesis from OHLCV"
+```
+
+Common options:
+
+- `--model gpt-5-mini`
+- `--max-attempts 2`
+- `--n-days 220`
+- `--n-tickers 50`
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy agent_alpha
+python -m pytest
+python -m build
+python -m twine check dist/*
+```
+
 ## Notebook
 
-See `agent-alpha/notebooks/01_agent_alpha_walkthrough.ipynb`.
+See `notebooks/01_agent_alpha_walkthrough.ipynb`.
+
+## License
+
+This project is licensed under the MIT License. See `LICENSE`.

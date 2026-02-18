@@ -38,7 +38,10 @@ def _coerce_window(value: Any, default: int = 1, minimum: int = 1) -> int:
 
 
 def _ensure_index_names(series: pd.Series) -> pd.Series:
-    if isinstance(series.index, pd.MultiIndex) and list(series.index.names) != ["datetime", "instrument"]:
+    if isinstance(series.index, pd.MultiIndex) and list(series.index.names) != [
+        "datetime",
+        "instrument",
+    ]:
         series = series.copy()
         series.index = series.index.set_names(["datetime", "instrument"])
     return series
@@ -177,7 +180,9 @@ def MEDIAN(x: Any, p: int | None = None) -> pd.Series:
 
 def _rolling_apply(s: pd.Series, p: int, fn: Callable[[pd.Series], float]) -> pd.Series:
     p = _coerce_window(p, default=1, minimum=1)
-    return _groupby_instrument(s).transform(lambda v: v.rolling(p, min_periods=1).apply(fn, raw=False))
+    return _groupby_instrument(s).transform(
+        lambda v: v.rolling(p, min_periods=1).apply(fn, raw=False)
+    )
 
 
 def TS_SUM(x: Any, p: int = 5) -> pd.Series:
@@ -258,7 +263,9 @@ def TS_CORR(x: Any, y: Any, p: int = 20) -> pd.Series:
 def EMA(x: Any, p: int = 12) -> pd.Series:
     s = _as_series(x)
     w = _coerce_window(p, default=12, minimum=1)
-    return _groupby_instrument(s).transform(lambda v: v.ewm(span=w, adjust=False, min_periods=1).mean())
+    return _groupby_instrument(s).transform(
+        lambda v: v.ewm(span=w, adjust=False, min_periods=1).mean()
+    )
 
 
 def SMA(x: Any, m: int = 5, n: int | None = None) -> pd.Series:
@@ -269,7 +276,9 @@ def SMA(x: Any, m: int = 5, n: int | None = None) -> pd.Series:
     m_val = _coerce_window(m, default=5, minimum=1)
     n_val = _coerce_window(n, default=1, minimum=1)
     alpha = float(n_val) / float(m_val)
-    return _groupby_instrument(s).transform(lambda v: v.ewm(alpha=alpha, adjust=False, min_periods=1).mean())
+    return _groupby_instrument(s).transform(
+        lambda v: v.ewm(alpha=alpha, adjust=False, min_periods=1).mean()
+    )
 
 
 def ABS(x: Any) -> Any:
@@ -541,11 +550,7 @@ def NULLIF(x: Any, y: Any = 0) -> Any:
         return left
 
 
-SAFE_FUNCTIONS = {
-    name: obj
-    for name, obj in globals().items()
-    if name.isupper() and callable(obj)
-}
+SAFE_FUNCTIONS = {name: obj for name, obj in globals().items() if name.isupper() and callable(obj)}
 
 # Convenience aliases for common lowercase / alternate DSL names from LLM outputs.
 SAFE_FUNCTIONS.update({name.lower(): fn for name, fn in SAFE_FUNCTIONS.items()})

@@ -88,7 +88,9 @@ def _coerce_node_payload(node: Any) -> dict[str, Any]:
                 node_type = "const"
 
         if node_type == "call":
-            op = payload.get("op", payload.get("name", payload.get("fn", payload.get("function", ""))))
+            op = payload.get(
+                "op", payload.get("name", payload.get("fn", payload.get("function", "")))
+            )
             raw_args = payload.get("args", payload.get("arguments", payload.get("params", [])))
             if isinstance(raw_args, tuple):
                 raw_args = list(raw_args)

@@ -63,7 +63,9 @@ def _coerce_window(node: Node, path: str) -> int:
 def _nearest_allowed_window(window: int, allowed_windows: set[int]) -> int:
     if not allowed_windows:
         return window
-    return min(allowed_windows, key=lambda candidate: (abs(int(candidate) - int(window)), int(candidate)))
+    return min(
+        allowed_windows, key=lambda candidate: (abs(int(candidate) - int(window)), int(candidate))
+    )
 
 
 def normalize_and_validate_ast(
@@ -91,7 +93,9 @@ def normalize_and_validate_ast(
             key = node.name if node.name in column_lookup else node.name.lower()
             canonical = column_lookup.get(key)
             if canonical is None:
-                raise ValidationError("unknown_column", path, f"column {node.name!r} is not allowed")
+                raise ValidationError(
+                    "unknown_column", path, f"column {node.name!r} is not allowed"
+                )
             return VarNode(canonical)
 
         if isinstance(node, ConstNode):
@@ -106,9 +110,13 @@ def normalize_and_validate_ast(
         args = [_walk(arg, f"{path}.args[{idx}]", depth + 1) for idx, arg in enumerate(node.args)]
         argc = len(args)
         if argc < spec.min_arity:
-            raise ValidationError("arity", path, f"{canonical_op} expects at least {spec.min_arity} args, got {argc}")
+            raise ValidationError(
+                "arity", path, f"{canonical_op} expects at least {spec.min_arity} args, got {argc}"
+            )
         if spec.max_arity is not None and argc > spec.max_arity:
-            raise ValidationError("arity", path, f"{canonical_op} expects at most {spec.max_arity} args, got {argc}")
+            raise ValidationError(
+                "arity", path, f"{canonical_op} expects at most {spec.max_arity} args, got {argc}"
+            )
 
         for arg_pos in spec.window_arg_positions:
             if arg_pos >= argc:

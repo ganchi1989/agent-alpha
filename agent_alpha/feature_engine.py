@@ -1,3 +1,5 @@
+"""Feature catalog and component computation for blueprint execution."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -6,7 +8,19 @@ from typing import Any, Callable
 import numpy as np
 import pandas as pd
 
-from .features import atr, candle_range, cvd, dist_to_vwap, ema, kdj_j, macd_hist, rsi, rv, sma, wick_ratio
+from .features import (
+    atr,
+    candle_range,
+    cvd,
+    dist_to_vwap,
+    ema,
+    kdj_j,
+    macd_hist,
+    rsi,
+    rv,
+    sma,
+    wick_ratio,
+)
 
 from .models import FeatureComponentSpec
 
@@ -15,6 +29,15 @@ FeatureFn = Callable[..., pd.Series]
 
 @dataclass(frozen=True, slots=True)
 class FeatureDefinition:
+    """Catalog entry describing one feature function.
+
+    Attributes:
+        name: Stable feature key used in blueprint component specs.
+        fn: Callable that computes the feature over one-instrument OHLCV data.
+        description: Short human-readable explanation.
+        default_params: Default keyword arguments merged with user overrides.
+    """
+
     name: str
     fn: FeatureFn
     description: str
@@ -32,7 +55,13 @@ FEATURE_DEFINITIONS: dict[str, FeatureDefinition] = {
         name="macd_hist",
         fn=macd_hist,
         description="MACD histogram (momentum trend spread).",
-        default_params={"fast_period": 12, "slow_period": 26, "signal_period": 9, "ma_method": "ema", "shift": 1},
+        default_params={
+            "fast_period": 12,
+            "slow_period": 26,
+            "signal_period": 9,
+            "ma_method": "ema",
+            "shift": 1,
+        },
     ),
     "atr": FeatureDefinition(
         name="atr",
@@ -92,10 +121,14 @@ FEATURE_DEFINITIONS: dict[str, FeatureDefinition] = {
 
 
 def component_column_name(component_id: str) -> str:
+    """Return the panel column name used for one computed component."""
+
     return f"$cmp_{component_id}"
 
 
 def feature_catalog_for_prompt() -> dict[str, dict[str, Any]]:
+    """Return compact feature metadata consumed by the blueprint-generation prompt."""
+
     return {
         key: {
             "description": value.description,
@@ -142,6 +175,16 @@ def _as_series(value: Any, index: pd.Index) -> pd.Series:
 
 
 def compute_feature_component(panel: pd.DataFrame, component: FeatureComponentSpec) -> pd.Series:
+    """Compute one blueprint component across all instruments in the panel.
+
+    Args:
+        panel: OHLCV panel indexed by `(datetime, instrument)`.
+        component: Blueprint component descriptor.
+
+    Returns:
+        A float series aligned to `panel.index` and named with `$cmp_<id>`.
+    """
+
     _require_panel_shape(panel)
     feature_key = component.feature.strip().lower()
     if feature_key not in FEATURE_DEFINITIONS:
@@ -172,6 +215,13 @@ def compute_blueprint_components(
     panel: pd.DataFrame,
     components: list[FeatureComponentSpec],
 ) -> tuple[pd.DataFrame, dict[str, str]]:
+    """Compute all blueprint components and append them to a copy of `panel`.
+
+    Returns:
+        Tuple `(augmented_panel, mapping)` where mapping resolves component IDs
+        to the generated component column names.
+    """
+
     _require_panel_shape(panel)
     augmented = panel.copy()
     mapping: dict[str, str] = {}

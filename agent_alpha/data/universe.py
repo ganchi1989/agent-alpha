@@ -1,3 +1,5 @@
+"""Universe mask construction, validation, and loading utilities."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -12,12 +14,22 @@ UNIVERSE_COLUMNS = ["date", "ticker", "in_universe"]
 
 @dataclass(frozen=True)
 class UniverseSpec:
+    """Configuration for synthetic universe construction.
+
+    Attributes:
+        size: Target number of instruments in each daily universe snapshot.
+        seed: Seed used for tie-breaking noise in liquidity ranking.
+        approx_tolerance: Allowed relative tolerance for expected universe size.
+    """
+
     size: int
     seed: int
     approx_tolerance: float = 0.15
 
     @classmethod
     def from_config(cls, cfg: dict[str, Any]) -> "UniverseSpec":
+        """Create `UniverseSpec` from a repository configuration dictionary."""
+
         synthetic_cfg = cfg.get("synthetic", {})
         return cls(
             size=int(synthetic_cfg.get("universe_size", 300)),
@@ -36,6 +48,8 @@ def _load_mask_file(path: Path) -> pd.DataFrame:
 
 
 def build_dynamic_universe(panel_df: pd.DataFrame, size: int, seed: int) -> pd.DataFrame:
+    """Build a liquidity-ranked dynamic universe from panel data."""
+
     if size <= 0:
         raise ValueError("Universe size must be > 0")
 
@@ -75,6 +89,15 @@ def validate_universe(
     expected_size: int | None = None,
     strict_tickers: bool = False,
 ) -> pd.DataFrame:
+    """Validate and normalize a universe membership data frame.
+
+    Args:
+        mask_df: Input universe rows.
+        panel_df: Panel data used to validate ticker availability.
+        expected_size: Optional minimum expected daily member count.
+        strict_tickers: Whether unknown tickers should raise instead of drop.
+    """
+
     if {"date", "ticker"} - set(mask_df.columns):
         raise ValueError("Universe mask must contain date and ticker columns")
 
@@ -93,7 +116,9 @@ def validate_universe(
     unknown_tickers = sorted(set(mask["ticker"].unique()) - panel_tickers)
     if unknown_tickers:
         if strict_tickers:
-            raise ValueError(f"Universe has tickers not present in panel. Example: {unknown_tickers[:5]}")
+            raise ValueError(
+                f"Universe has tickers not present in panel. Example: {unknown_tickers[:5]}"
+            )
         mask = mask[mask["ticker"].isin(panel_tickers)].copy()
         if mask.empty:
             raise ValueError(
@@ -115,6 +140,8 @@ def validate_universe(
 
 
 def load_universe(panel_df: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame:
+    """Load a universe mask from file or generate one from panel liquidity."""
+
     data_cfg = config.get("data", {})
     spec = UniverseSpec.from_config(data_cfg)
     universe_path = data_cfg.get("universe_path")

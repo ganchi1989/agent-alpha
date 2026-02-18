@@ -1,3 +1,5 @@
+"""Feature functions and enums used by the feature-engine catalog."""
+
 from __future__ import annotations
 
 from .atr import ATRMethod, atr

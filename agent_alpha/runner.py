@@ -1,3 +1,5 @@
+"""Programmatic and CLI entry points for running the full workflow."""
+
 from __future__ import annotations
 
 import argparse
@@ -21,6 +23,21 @@ def run_agent_alpha(
     max_attempts: int = 2,
     universe_mask: pd.DataFrame | pd.Series | None = None,
 ) -> dict[str, Any]:
+    """Run the end-to-end workflow on a generated synthetic panel.
+
+    Args:
+        user_goal: Natural-language research objective.
+        api_key: Optional OpenAI API key injected into `OPENAI_API_KEY`.
+        model_name: Chat model name used by the workflow agents.
+        n_days: Number of business days in synthetic panel generation.
+        n_tickers: Number of synthetic instruments.
+        max_attempts: Maximum blueprint repair attempts.
+        universe_mask: Optional evaluation scope mask for metrics.
+
+    Returns:
+        Final workflow state as a plain dictionary.
+    """
+
     if api_key:
         os.environ["OPENAI_API_KEY"] = api_key
 
@@ -46,6 +63,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """CLI entrypoint that executes the workflow and prints JSON output."""
+
     parser = _build_parser()
     args = parser.parse_args(argv)
 

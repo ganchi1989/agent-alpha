@@ -1,20 +1,51 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-alpha"
 version = "0.1.0"
 description = "Standalone LangGraph blueprint-to-AST factor agent"
-readme = "README.md"
+readme = { file = "README.md", content-type = "text/markdown" }
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "agent-alpha contributors" }]
 requires-python = ">=3.10"
+keywords = ["quant", "factor-model", "langgraph", "ast", "alpha-research"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Financial and Insurance Industry",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Office/Business :: Financial :: Investment",
+  "Typing :: Typed",
+]
 dependencies = [
   "numpy>=1.24",
   "pandas>=2.0",
   "pydantic>=2.7",
-  "langchain>=1.0.0",
-  "langgraph>=0.2.0",
-  "langchain-openai>=0.3.0",
+  "langchain>=1.0.0,<2.0.0",
+  "langgraph>=1.0.2,<2.0.0",
+  "langchain-openai>=0.3.0,<1.0.0",
+]
+
+[project.optional-dependencies]
+data = [
+  "beautifulsoup4>=4.12",
+  "requests>=2.31",
+  "yfinance>=0.2.40",
+]
+dev = [
+  "build>=1.2.0",
+  "mypy>=1.11",
+  "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "ruff>=0.6.0",
+  "twine>=5.0.0",
 ]
 
 [project.scripts]
@@ -24,4 +55,47 @@ agent-alpha-run = "agent_alpha.runner:main"
 include-package-data = true
 
 [tool.setuptools.packages.find]
+where = ["."]
 include = ["agent_alpha*"]
+
+[tool.setuptools.package-data]
+agent_alpha = ["py.typed"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+exclude = ["notebooks"]
+
+[tool.ruff.lint]
+select = ["B", "E", "F"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.10"
+files = ["agent_alpha", "tests"]
+ignore_missing_imports = true
+check_untyped_defs = false
+warn_return_any = false
+warn_unused_configs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = [
+  "agent_alpha.data.market_data",
+  "agent_alpha.data.panel",
+  "agent_alpha.evaluator",
+  "agent_alpha.feature_engine",
+  "agent_alpha.features.*",
+  "agent_alpha.operators.*",
+  "agent_alpha.workflow",
+]
+ignore_errors = true

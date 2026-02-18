@@ -1,3 +1,5 @@
+"""Legacy synthetic panel loader retained for backward compatibility."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -11,6 +13,8 @@ def load_synthetic_panel(
     start_date: str = "2018-01-01",
     n_sectors: int = 8,
 ) -> pd.DataFrame:
+    """Generate a synthetic OHLCV panel indexed by `(datetime, instrument)`."""
+
     rng = np.random.default_rng(int(seed))
     n_days = int(n_days)
     n_tickers = int(n_tickers)

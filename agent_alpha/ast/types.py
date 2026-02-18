@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from .nodes import CallNode, ConstNode, Node, VarNode
+from .nodes import ConstNode, Node, VarNode
 from .registry import OperatorRegistry
 
 
@@ -64,14 +64,24 @@ def _resolve_return_kind(return_kind: str, arg_kinds: list[ValueKind]) -> ValueK
     if key == "series_like":
         return ValueKind.SERIES if any(_is_series_like(v) for v in arg_kinds) else ValueKind.SCALAR
     if key == "bool_like":
-        return ValueKind.BOOL_SERIES if any(_is_series_like(v) for v in arg_kinds) else ValueKind.BOOL_SCALAR
+        return (
+            ValueKind.BOOL_SERIES
+            if any(_is_series_like(v) for v in arg_kinds)
+            else ValueKind.BOOL_SCALAR
+        )
     if key == "same_as_first":
         return arg_kinds[0] if arg_kinds else ValueKind.SCALAR
     if key == "branch_value":
         branch = arg_kinds[1:3]
         if any(_is_series_like(v) for v in branch):
-            return ValueKind.BOOL_SERIES if all(_is_bool_like(v) for v in branch) else ValueKind.SERIES
-        return ValueKind.BOOL_SCALAR if branch and all(_is_bool_like(v) for v in branch) else ValueKind.SCALAR
+            return (
+                ValueKind.BOOL_SERIES if all(_is_bool_like(v) for v in branch) else ValueKind.SERIES
+            )
+        return (
+            ValueKind.BOOL_SCALAR
+            if branch and all(_is_bool_like(v) for v in branch)
+            else ValueKind.SCALAR
+        )
     return ValueKind.SERIES if any(_is_series_like(v) for v in arg_kinds) else ValueKind.SCALAR
 
 
@@ -85,7 +95,9 @@ def infer_node_type(node: Node, registry: OperatorRegistry, path: str = "root") 
         return ValueKind.SCALAR
 
     spec = registry.get(node.op)
-    arg_kinds = [infer_node_type(arg, registry, f"{path}.args[{idx}]") for idx, arg in enumerate(node.args)]
+    arg_kinds = [
+        infer_node_type(arg, registry, f"{path}.args[{idx}]") for idx, arg in enumerate(node.args)
+    ]
     effective_arg_kinds = list(arg_kinds)
     if spec.arg_kinds:
         for idx, actual in enumerate(arg_kinds):

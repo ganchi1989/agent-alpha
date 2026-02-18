@@ -5,7 +5,16 @@ import json
 import math
 from typing import Any, Mapping
 
-from .nodes import CallNode, ConstNode, Node, VarNode, ensure_node, node_depth, node_size, node_to_dict
+from .nodes import (
+    CallNode,
+    ConstNode,
+    Node,
+    VarNode,
+    ensure_node,
+    node_depth,
+    node_size,
+    node_to_dict,
+)
 from .schema import AST_VERSION, validate_factor_ast_payload
 
 

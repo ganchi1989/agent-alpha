@@ -1,3 +1,5 @@
+"""Panel loading, validation, and synthetic-data generation utilities."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -12,6 +14,20 @@ PANEL_COLUMNS = ["date", "ticker", "open", "high", "low", "close", "volume"]
 
 @dataclass(frozen=True)
 class SyntheticSpec:
+    """Configuration for synthetic OHLCV panel generation.
+
+    Attributes:
+        seed: Random seed used for reproducible simulation.
+        start_date: First business day in the generated panel.
+        n_days: Number of business-day rows per ticker.
+        n_tickers: Number of synthetic instruments.
+        n_sectors: Number of latent sector buckets used in return simulation.
+
+    Invariants:
+        - Generated output contains unique `(date, ticker)` rows.
+        - Prices are non-negative and volumes are non-negative.
+    """
+
     seed: int
     start_date: str
     n_days: int
@@ -20,6 +36,8 @@ class SyntheticSpec:
 
     @classmethod
     def from_config(cls, cfg: dict[str, Any]) -> "SyntheticSpec":
+        """Create a spec from a loose config dictionary with defaults."""
+
         return cls(
             seed=int(cfg.get("seed", 7)),
             start_date=str(cfg.get("start_date", "2018-01-01")),
@@ -39,6 +57,18 @@ def _load_panel_file(path: Path) -> pd.DataFrame:
 
 
 def validate_panel_df(panel_df: pd.DataFrame) -> pd.DataFrame:
+    """Validate and normalize a flat panel data frame.
+
+    Args:
+        panel_df: Data frame expected to contain `PANEL_COLUMNS`.
+
+    Returns:
+        Cleaned data frame sorted by `(date, ticker)`.
+
+    Raises:
+        ValueError: If required columns/constraints are violated.
+    """
+
     missing = sorted(set(PANEL_COLUMNS) - set(panel_df.columns))
     if missing:
         raise ValueError(f"panel_df is missing required columns: {missing}")
@@ -61,6 +91,8 @@ def validate_panel_df(panel_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def generate_synthetic_panel(spec: SyntheticSpec) -> pd.DataFrame:
+    """Generate a reproducible synthetic OHLCV panel from `SyntheticSpec`."""
+
     rng = np.random.default_rng(spec.seed)
     dates = pd.bdate_range(spec.start_date, periods=spec.n_days)
     tickers = np.array([f"T{idx:04d}" for idx in range(spec.n_tickers)], dtype=object)
@@ -130,11 +162,20 @@ def generate_synthetic_panel(spec: SyntheticSpec) -> pd.DataFrame:
 
 
 def load_panel(config: dict[str, Any]) -> pd.DataFrame:
+    """Load panel data from synthetic generation or a file source.
+
+    Supported sources:
+        - `synthetic`: Generates data from `data.synthetic` config.
+        - `file`: Loads from `data.panel_path` (`.csv`/`.txt`/`.parquet`).
+    """
+
     data_cfg = config.get("data", {})
     source = str(data_cfg.get("source", "synthetic")).lower()
 
     if source == "synthetic":
-        panel_df = generate_synthetic_panel(SyntheticSpec.from_config(data_cfg.get("synthetic", {})))
+        panel_df = generate_synthetic_panel(
+            SyntheticSpec.from_config(data_cfg.get("synthetic", {}))
+        )
     elif source == "file":
         panel_path = data_cfg.get("panel_path")
         if not panel_path:

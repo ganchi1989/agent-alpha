@@ -48,7 +48,9 @@ class ASTInterpreter:
         return None
 
     @staticmethod
-    def _arg_target_index(values: list[Any], fallback: pd.Index | pd.MultiIndex | None) -> pd.Index | pd.MultiIndex | None:
+    def _arg_target_index(
+        values: list[Any], fallback: pd.Index | pd.MultiIndex | None
+    ) -> pd.Index | pd.MultiIndex | None:
         for value in values:
             if isinstance(value, pd.Series):
                 return value.index
@@ -92,7 +94,10 @@ class ASTInterpreter:
             raise ASTInterpretationError(path, f"Unsupported node: {type(node)!r}")
 
         spec = self.registry.get(node.op)
-        values = [self.evaluate(arg, variables, f"{path}.args[{idx}]") for idx, arg in enumerate(node.args)]
+        values = [
+            self.evaluate(arg, variables, f"{path}.args[{idx}]")
+            for idx, arg in enumerate(node.args)
+        ]
         context_index = self._context_index(variables)
         target_index = self._arg_target_index(values, context_index)
         if spec.arg_kinds:

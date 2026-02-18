@@ -1,12 +1,18 @@
+"""Download and normalize S&P 500 universe and Yahoo OHLCV panel data."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
 import re
 import time
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
+
+if TYPE_CHECKING:
+    from bs4.element import Tag
 
 WIKI_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 UNIVERSE_COLUMNS = ["date", "ticker", "in_universe"]
@@ -23,7 +29,7 @@ def _normalize_ticker(ticker: str) -> str:
     return _clean_text(ticker).upper().replace(".", "-")
 
 
-def _parse_current_constituents(table: "Tag") -> pd.DataFrame:
+def _parse_current_constituents(table: Tag) -> pd.DataFrame:
     rows: list[dict[str, str]] = []
     for tr in table.find_all("tr"):
         cells = tr.find_all("td")
@@ -35,10 +41,15 @@ def _parse_current_constituents(table: "Tag") -> pd.DataFrame:
             rows.append({"ticker": ticker, "name": name})
     if not rows:
         raise ValueError("Failed to parse current S&P 500 constituents from Wikipedia")
-    return pd.DataFrame(rows).drop_duplicates(subset=["ticker"]).sort_values("ticker").reset_index(drop=True)
+    return (
+        pd.DataFrame(rows)
+        .drop_duplicates(subset=["ticker"])
+        .sort_values("ticker")
+        .reset_index(drop=True)
+    )
 
 
-def _parse_changes(table: "Tag") -> pd.DataFrame:
+def _parse_changes(table: Tag) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
     last_date = pd.NaT
     for tr in table.find_all("tr"):
@@ -74,7 +85,22 @@ def _parse_changes(table: "Tag") -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
 
 
-def download_wikipedia_tables(url: str = WIKI_URL, timeout_seconds: float = 30.0) -> tuple[pd.DataFrame, pd.DataFrame]:
+def download_wikipedia_tables(
+    url: str = WIKI_URL, timeout_seconds: float = 30.0
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Fetch S&P 500 constituents and membership changes from Wikipedia.
+
+    Args:
+        url: Wikipedia page URL containing constituents and changes tables.
+        timeout_seconds: HTTP request timeout in seconds.
+
+    Returns:
+        A tuple of two data frames: `(current_constituents, changes)`.
+
+    Raises:
+        ImportError: If `requests` or `beautifulsoup4` is not installed.
+        ValueError: If expected HTML tables cannot be parsed.
+    """
     try:
         import requests
         from bs4 import BeautifulSoup
@@ -114,8 +140,26 @@ def build_daily_universe(
     start_date: str | pd.Timestamp,
     end_date: str | pd.Timestamp | None = None,
 ) -> pd.DataFrame:
+    """Build a business-day universe membership panel by replaying index changes.
+
+    The algorithm starts from the current membership set and walks backward
+    through the changes table to reconstruct membership on each date.
+
+    Args:
+        current_constituents: Data frame with at least a `ticker` column.
+        changes_df: Data frame with `date`, `add_ticker`, `removed_ticker`.
+        start_date: Inclusive lower bound for the output date range.
+        end_date: Inclusive upper bound for the output date range. Defaults to today.
+
+    Returns:
+        Data frame with `date`, `ticker`, and `in_universe` columns.
+    """
     start = pd.Timestamp(start_date).normalize()
-    end = pd.Timestamp(end_date).normalize() if end_date is not None else pd.Timestamp.today().normalize()
+    end = (
+        pd.Timestamp(end_date).normalize()
+        if end_date is not None
+        else pd.Timestamp.today().normalize()
+    )
     if end < start:
         raise ValueError(f"end_date {end.date()} is earlier than start_date {start.date()}")
     dates = pd.bdate_range(start=start, end=end)
@@ -140,10 +184,19 @@ def build_daily_universe(
             ptr += 1
         records.extend((date, ticker, 1) for ticker in sorted(state))
 
-    return pd.DataFrame(records, columns=UNIVERSE_COLUMNS).sort_values(["date", "ticker"]).reset_index(drop=True)
+    return (
+        pd.DataFrame(records, columns=UNIVERSE_COLUMNS)
+        .sort_values(["date", "ticker"])
+        .reset_index(drop=True)
+    )
 
 
 def to_monthly_universe(daily_universe: pd.DataFrame) -> pd.DataFrame:
+    """Downsample daily universe membership to one snapshot per month.
+
+    The monthly snapshot is taken from each calendar month's first observed
+    business day in the input data.
+    """
     universe = daily_universe.copy()
     universe["month"] = universe["date"].dt.to_period("M")
     first_dates = universe.groupby("month")["date"].min().rename("month_first_date")
@@ -215,7 +268,11 @@ def _normalize_yahoo_batch(raw: pd.DataFrame, tickers: list[str]) -> pd.DataFram
     panel["volume"] = pd.to_numeric(panel["volume"], errors="coerce").fillna(0.0)
     panel = panel.dropna(subset=["open", "high", "low", "close"])
     panel = panel[panel["volume"] >= 0]
-    return panel.sort_values(["date", "ticker"]).drop_duplicates(["date", "ticker"]).reset_index(drop=True)
+    return (
+        panel.sort_values(["date", "ticker"])
+        .drop_duplicates(["date", "ticker"])
+        .reset_index(drop=True)
+    )
 
 
 def download_yahoo_panel(
@@ -226,10 +283,29 @@ def download_yahoo_panel(
     auto_adjust: bool = True,
     pause_seconds: float = 0.2,
 ) -> pd.DataFrame:
+    """Download and normalize daily OHLCV data from Yahoo Finance.
+
+    Args:
+        tickers: Symbols to download.
+        start_date: Inclusive download start date (`YYYY-MM-DD`).
+        end_date: Exclusive download end date (`YYYY-MM-DD`).
+        batch_size: Number of tickers per request batch.
+        auto_adjust: Whether to request adjusted prices from Yahoo.
+        pause_seconds: Sleep interval between batches to reduce throttling risk.
+
+    Returns:
+        Normalized panel with columns in `PANEL_COLUMNS`.
+
+    Raises:
+        ImportError: If `yfinance` is not installed.
+        ValueError: For invalid inputs or malformed downloaded data.
+    """
     try:
         import yfinance as yf
     except ImportError as exc:  # pragma: no cover
-        raise ImportError("Yahoo download requires yfinance. Install with: pip install yfinance") from exc
+        raise ImportError(
+            "Yahoo download requires yfinance. Install with: pip install yfinance"
+        ) from exc
 
     if not tickers:
         raise ValueError("No tickers provided for Yahoo download")
@@ -257,7 +333,11 @@ def download_yahoo_panel(
         raise ValueError("No price data downloaded from Yahoo")
 
     panel = pd.concat(frames, ignore_index=True)
-    panel = panel.sort_values(["date", "ticker"]).drop_duplicates(["date", "ticker"]).reset_index(drop=True)
+    panel = (
+        panel.sort_values(["date", "ticker"])
+        .drop_duplicates(["date", "ticker"])
+        .reset_index(drop=True)
+    )
     if (panel["high"] < panel["low"]).any():
         raise ValueError("Detected rows where high < low")
     if (panel["volume"] < 0).any():
@@ -283,6 +363,25 @@ def _save_frame(df: pd.DataFrame, output_path: Path) -> None:
 
 @dataclass
 class SP500UniverseBuilder:
+    """Stateful builder for historical S&P 500 membership data.
+
+    Attributes:
+        start_date: Inclusive lower bound for generated membership snapshots.
+        end_date: Inclusive upper bound. When `None`, uses current date.
+        timeout_seconds: Timeout used for Wikipedia fetch requests.
+        current_constituents: Cached constituents table from `fetch`.
+        changes_df: Cached index change log from `fetch`.
+
+    Invariants:
+        - `current_constituents` and `changes_df` are either both populated
+          after a successful fetch or both `None`.
+
+    Example:
+        >>> builder = SP500UniverseBuilder(start_date="2018-01-01")
+        >>> monthly = builder.build_monthly()
+        >>> SP500UniverseBuilder.save(monthly, "spx_universe.parquet")
+    """
+
     start_date: str = "1990-01-01"
     end_date: str | None = None
     timeout_seconds: float = 30.0
@@ -291,6 +390,7 @@ class SP500UniverseBuilder:
     changes_df: pd.DataFrame | None = None
 
     def fetch(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Fetch and cache the current constituents and historical changes."""
         current, changes = download_wikipedia_tables(timeout_seconds=self.timeout_seconds)
         self.current_constituents = current
         self.changes_df = changes
@@ -301,6 +401,7 @@ class SP500UniverseBuilder:
             self.fetch()
 
     def build_daily(self) -> pd.DataFrame:
+        """Build a daily universe panel from cached or freshly fetched tables."""
         self._ensure_fetched()
         return build_daily_universe(
             current_constituents=self.current_constituents,  # type: ignore[arg-type]
@@ -310,15 +411,34 @@ class SP500UniverseBuilder:
         )
 
     def build_monthly(self) -> pd.DataFrame:
+        """Build a first-business-day-per-month universe panel."""
         return to_monthly_universe(self.build_daily())
 
     @staticmethod
     def save(df: pd.DataFrame, output_path: str | Path) -> None:
+        """Persist a universe data frame to CSV/TXT/Parquet."""
         _save_frame(df, Path(output_path))
 
 
 @dataclass
 class YahooPanelBuilder:
+    """Builder that downloads OHLCV panel data for a given universe snapshot table.
+
+    Attributes:
+        batch_size: Number of tickers downloaded per Yahoo request.
+        pause_seconds: Delay between batches to reduce request throttling.
+        auto_adjust: Whether Yahoo returns adjusted prices.
+
+    Invariants:
+        - Output panel rows are unique by `(date, ticker)`.
+        - Universe output contains only tickers and dates present in the panel.
+
+    Example:
+        >>> builder = YahooPanelBuilder(batch_size=80)
+        >>> panel_df, universe_df = builder.download(universe_df)
+        >>> builder.save_panel(panel_df, "spx_panel.parquet")
+    """
+
     batch_size: int = 100
     pause_seconds: float = 0.2
     auto_adjust: bool = True
@@ -329,6 +449,7 @@ class YahooPanelBuilder:
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Download panel data and align the universe to available market data."""
         required = {"date", "ticker"}
         missing = required - set(universe_df.columns)
         if missing:
@@ -342,7 +463,11 @@ class YahooPanelBuilder:
         u = u[u["in_universe"] == 1][["date", "ticker", "in_universe"]].drop_duplicates()
 
         start = pd.Timestamp(start_date).normalize() if start_date else u["date"].min()
-        end = pd.Timestamp(end_date).normalize() if end_date else (u["date"].max() + pd.Timedelta(days=1))
+        end = (
+            pd.Timestamp(end_date).normalize()
+            if end_date
+            else (u["date"].max() + pd.Timedelta(days=1))
+        )
         if end <= start:
             raise ValueError("end_date must be later than start_date")
 
@@ -367,8 +492,10 @@ class YahooPanelBuilder:
 
     @staticmethod
     def save_panel(panel_df: pd.DataFrame, output_path: str | Path) -> None:
+        """Persist a normalized panel data frame to disk."""
         _save_frame(panel_df, Path(output_path))
 
     @staticmethod
     def save_universe(universe_df: pd.DataFrame, output_path: str | Path) -> None:
+        """Persist a normalized universe data frame to disk."""
         _save_frame(universe_df, Path(output_path))

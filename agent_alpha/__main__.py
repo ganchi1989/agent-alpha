@@ -1,3 +1,5 @@
+"""Command-line entrypoint for `python -m agent_alpha`."""
+
 from .runner import main
 
 
