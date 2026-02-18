@@ -414,7 +414,7 @@ class TestTimeSeries:
         assert isinstance(DELTA(_panel(dates=10), 1), pd.Series)
 
     def test_delta_series_period(self):
-        from agent_alpha.operators.function_lib import DELTA, SUBTRACT
+        from agent_alpha.operators.function_lib import DELTA
 
         s = _panel(dates=10)
         # When p is a Series, DELTA delegates to SUBTRACT
@@ -526,9 +526,9 @@ class TestMath:
         assert abs(result - np.log(2.0)) < 1e-12
 
     def test_log_scalar_nonpositive(self):
-        from agent_alpha.operators.function_lib import LOG
-
         import math
+
+        from agent_alpha.operators.function_lib import LOG
 
         assert math.isnan(LOG(-1.0))
 
