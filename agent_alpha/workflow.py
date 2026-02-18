@@ -98,8 +98,7 @@ class AgentAlphaWorkflow:
         prompt = (
             "User goal:\n"
             f"{state['user_goal']}\n\n"
-            "Return one concise alpha hypothesis and rationale. "
-            "Keep the hypothesis under 300 characters."
+            "Return one concise alpha hypothesis and rationale."
         )
         try:
             result = self.hypothesis_agent.invoke({"messages": [{"role": "user", "content": prompt}]})
@@ -111,7 +110,7 @@ class AgentAlphaWorkflow:
             }
         except Exception as exc:
             fallback = str(state.get("user_goal", "Robust cross-sectional alpha from OHLCV")).strip()
-            fallback = fallback[:300]
+            fallback = " ".join(fallback.split())
             if len(fallback) < 8:
                 fallback = "Robust cross-sectional alpha factor from OHLCV."
             return {
